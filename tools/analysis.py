@@ -9,8 +9,8 @@ from tools.logger import logged
 
 
 def load_rules(path="config/risk_rules.yaml"):
-    with open(path) as f:
-        return yaml.safe_load(f)
+    with open(path, encoding="utf-8") as file:
+        return yaml.safe_load(file)
 
 
 def _same_month_last_year(month):
@@ -19,8 +19,12 @@ def _same_month_last_year(month):
 
 
 def _result(status, data=None, reason=""):
-    # Every tool returns this same shape
-    return {"status": status, "data": data or {}, "reason": reason}
+    # Every tool returns the same structure.
+    return {
+        "status": status,
+        "data": data or {},
+        "reason": reason,
+    }
 
 
 @logged
@@ -29,7 +33,7 @@ def calculate_purchase_decline(
     analysis_month=None,
     comparison_month=None,
     data_dir="data",
-    rules_path="config/risk_rules.yaml"
+    rules_path="config/risk_rules.yaml",
 ):
     rules = load_rules(rules_path)
 
@@ -40,14 +44,12 @@ def calculate_purchase_decline(
         comparison_month or rules["comparison"]["comparison_month"]
     )
 
-    # 1. Validate input
     if not customer_id or not isinstance(customer_id, str):
         return _result(
             "error",
-            reason="customer_id must be a non-empty string"
+            reason="customer_id must be a non-empty string",
         )
 
-    # 2. Load this customer's purchases
     try:
         df = pd.read_csv(f"{data_dir}/purchases.csv")
     except FileNotFoundError:
@@ -58,10 +60,9 @@ def calculate_purchase_decline(
     if df.empty:
         return _result(
             "error",
-            reason=f"No purchase records for {customer_id}"
+            reason=f"No purchase records for {customer_id}",
         )
 
-    # 3. New customer check
     months_of_history = df["month"].nunique()
 
     if months_of_history < rules["minimum_history_months"]:
@@ -71,23 +72,23 @@ def calculate_purchase_decline(
                 f"Only {months_of_history} month(s) of history; "
                 f"need {rules['minimum_history_months']}. "
                 "Risk not assigned."
-            )
+            ),
         )
 
     amounts = df.set_index("month")["amount"]
 
     def decline_pct(old_month, new_month):
-        if old_month not in amounts or new_month not in amounts:
+        if old_month not in amounts.index or new_month not in amounts.index:
             return None
 
-        old, new = amounts[old_month], amounts[new_month]
+        old = amounts[old_month]
+        new = amounts[new_month]
 
         if old == 0:
             return None
 
         return float(round((old - new) / old * 100, 2))
 
-    # 4. Current decline
     current = decline_pct(comparison_month, analysis_month)
 
     if current is None:
@@ -96,13 +97,12 @@ def calculate_purchase_decline(
             reason=(
                 f"Missing data for {comparison_month} "
                 f"or {analysis_month}"
-            )
+            ),
         )
 
-    # 5. Seasonality: same two months one year earlier
     last_year = decline_pct(
         _same_month_last_year(comparison_month),
-        _same_month_last_year(analysis_month)
+        _same_month_last_year(analysis_month),
     )
 
     tolerance = rules["seasonality"]["tolerance_pct"]
@@ -127,7 +127,7 @@ def calculate_purchase_decline(
         reason=(
             "Seasonal pattern: similar drop last year"
             if seasonal else ""
-        )
+        ),
     )
 
 
@@ -137,7 +137,7 @@ def calculate_engagement_score(
     analysis_month=None,
     comparison_month=None,
     data_dir="data",
-    rules_path="config/risk_rules.yaml"
+    rules_path="config/risk_rules.yaml",
 ):
     rules = load_rules(rules_path)
 
@@ -148,16 +148,14 @@ def calculate_engagement_score(
         comparison_month or rules["comparison"]["comparison_month"]
     )
 
-    w = rules["engagement_weights"]
+    weights = rules["engagement_weights"]
 
-    # 1. Validate input
     if not customer_id or not isinstance(customer_id, str):
         return _result(
             "error",
-            reason="customer_id must be a non-empty string"
+            reason="customer_id must be a non-empty string",
         )
 
-    # 2. Load engagement data
     try:
         df = pd.read_csv(f"{data_dir}/engagement.csv")
     except FileNotFoundError:
@@ -168,37 +166,37 @@ def calculate_engagement_score(
     if df.empty:
         return _result(
             "error",
-            reason=f"No engagement records for {customer_id}"
+            reason=f"No engagement records for {customer_id}",
         )
 
-    # 3. Calculate weighted engagement score
     df = df.assign(
         score=(
-            df["logins"] * w["logins"]
-            + df["emails_opened"] * w["emails_opened"]
+            df["logins"] * weights["logins"]
+            + df["emails_opened"] * weights["emails_opened"]
         )
     )
 
     scores = df.set_index("month")["score"]
 
-    # 4. Validate monthly data
-    if comparison_month not in scores or analysis_month not in scores:
+    if (
+        comparison_month not in scores.index
+        or analysis_month not in scores.index
+    ):
         return _result(
             "insufficient_data",
             reason=(
                 f"Missing engagement data for {comparison_month} "
                 f"or {analysis_month}"
-            )
+            ),
         )
 
-    # 5. Calculate engagement decline
     old = float(scores[comparison_month])
     new = float(scores[analysis_month])
 
     if old == 0:
         return _result(
             "insufficient_data",
-            reason="Comparison month score is 0"
+            reason="Comparison month score is 0",
         )
 
     engagement_decline = float(
@@ -212,7 +210,7 @@ def calculate_engagement_score(
             "comparison_score": old,
             "analysis_score": new,
             "engagement_decline_pct": engagement_decline,
-        }
+        },
     )
 
 
@@ -222,21 +220,21 @@ def assign_retention_risk(
     analysis_month=None,
     comparison_month=None,
     data_dir="data",
-    rules_path="config/risk_rules.yaml"
+    rules_path="config/risk_rules.yaml",
 ):
     rules = load_rules(rules_path)
 
-    kwargs = dict(
-        analysis_month=analysis_month,
-        comparison_month=comparison_month,
-        data_dir=data_dir,
-        rules_path=rules_path
-    )
+    kwargs = {
+        "analysis_month": analysis_month,
+        "comparison_month": comparison_month,
+        "data_dir": data_dir,
+        "rules_path": rules_path,
+    }
 
     trace = []
 
-    # 1. Run the two analysis tools
     purchase = calculate_purchase_decline(customer_id, **kwargs)
+
     trace.append(
         f"calculate_purchase_decline -> {purchase['status']}"
     )
@@ -244,10 +242,11 @@ def assign_retention_risk(
     if purchase["status"] != "ok":
         return _result(
             purchase["status"],
-            reason=purchase["reason"]
+            reason=purchase["reason"],
         )
 
     engagement = calculate_engagement_score(customer_id, **kwargs)
+
     trace.append(
         f"calculate_engagement_score -> {engagement['status']}"
     )
@@ -255,7 +254,7 @@ def assign_retention_risk(
     if engagement["status"] != "ok":
         return _result(
             engagement["status"],
-            reason=engagement["reason"]
+            reason=engagement["reason"],
         )
 
     p = purchase["data"]["purchase_decline_pct"]
@@ -266,7 +265,7 @@ def assign_retention_risk(
         f"purchase decline {p}%, engagement decline {e}%"
     )
 
-    # 2. Seasonal declines are not treated as churn risk
+    # Seasonal declines are monitored rather than treated as churn risk.
     if seasonal:
         trace.append(
             "seasonal pattern detected -> risk set to Low (monitor)"
@@ -282,10 +281,12 @@ def assign_retention_risk(
                 "seasonal": True,
                 "rule_trace": trace,
             },
-            reason="Decline matches last year's seasonal pattern"
+            reason="Decline matches last year's seasonal pattern",
         )
 
-    # 3. Apply YAML rules, first match wins
+    # Apply YAML rules in order; the first matching rule wins.
+    level = None
+
     for rule in rules["risk_levels"]:
         if rule["match"] == "default":
             trace.append(
@@ -297,11 +298,10 @@ def assign_retention_risk(
         p_ok = p >= rule["purchase_decline_pct_min"]
         e_ok = e >= rule["engagement_decline_pct_min"]
 
-        hit = (
-            (p_ok and e_ok)
-            if rule["match"] == "all"
-            else (p_ok or e_ok)
-        )
+        if rule["match"] == "all":
+            hit = p_ok and e_ok
+        else:
+            hit = p_ok or e_ok
 
         trace.append(
             f"{rule['level']} rule ({rule['match']}): "
@@ -316,6 +316,12 @@ def assign_retention_risk(
             level = rule["level"]
             break
 
+    if level is None:
+        return _result(
+            "error",
+            reason="No matching risk rule or default rule found",
+        )
+
     return _result(
         "ok",
         {
@@ -325,7 +331,7 @@ def assign_retention_risk(
             "engagement_decline_pct": e,
             "seasonal": False,
             "rule_trace": trace,
-        }
+        },
     )
 
 
@@ -335,7 +341,8 @@ def get_eligible_offers(
     risk_level,
     data_dir="data",
     rules_path="config/risk_rules.yaml",
-    budget_spent=0
+    budget_spent=0,
+    budget_override=None,
 ):
     rules = load_rules(rules_path)
     order = rules["risk_order"]
@@ -343,119 +350,156 @@ def get_eligible_offers(
     if risk_level not in order:
         return _result(
             "error",
-            reason=f"Unknown risk level: {risk_level}"
+            reason=f"Unknown risk level: {risk_level}",
         )
 
     try:
         customers = pd.read_csv(f"{data_dir}/customers.csv")
         complaints = pd.read_csv(f"{data_dir}/complaints.csv")
+
         offers = pd.read_excel(
             f"{data_dir}/offers.xlsx",
-            sheet_name="offers"
+            sheet_name="offers",
         )
+
         budgets = pd.read_excel(
             f"{data_dir}/offers.xlsx",
-            sheet_name="budgets"
+            sheet_name="budgets",
         )
-    except FileNotFoundError as e:
-        return _result("error", reason=f"Data file missing: {e}")
+
+    except FileNotFoundError as exc:
+        return _result(
+            "error",
+            reason=f"Data file missing: {exc}",
+        )
 
     cust = customers[customers["customer_id"] == customer_id]
 
     if cust.empty:
         return _result(
             "error",
-            reason=f"Unknown customer {customer_id}"
+            reason=f"Unknown customer {customer_id}",
         )
 
     segment = cust.iloc[0]["segment"]
     contact = cust.iloc[0]["contact_preference"]
 
-    # 1. Consent
+    # 1. Respect consent before considering any offer.
     if contact == "none":
         return _result(
             "blocked",
             {
                 "customer_id": customer_id,
-                "eligible_offers": []
+                "eligible_offers": [],
             },
             reason=(
                 "Customer opted out of contact. "
                 "No outreach allowed."
-            )
+            ),
         )
 
-    # 2. Open complaint: service first
-    open_c = complaints[
+    # 2. Resolve open complaints before offering anything.
+    open_complaints = complaints[
         (complaints["customer_id"] == customer_id)
         & (complaints["status"] == "open")
     ]
 
-    if not open_c.empty:
-        ids = ", ".join(open_c["complaint_id"].astype(str))
+    if not open_complaints.empty:
+        complaint_ids = ", ".join(
+            open_complaints["complaint_id"].astype(str)
+        )
 
         return _result(
             "service_first",
             {
                 "customer_id": customer_id,
-                "open_complaints": ids,
-                "eligible_offers": []
+                "open_complaints": complaint_ids,
+                "eligible_offers": [],
             },
             reason=(
-                f"Open complaint ({ids}). "
+                f"Open complaint ({complaint_ids}). "
                 "Resolve service issue before any offer."
-            )
+            ),
         )
 
-    # 3-5. Risk, segment, budget
+    # 3. Calculate the segment's remaining budget.
     budget_row = budgets[budgets["segment"] == segment]
 
-    budget_left = (
-        float(budget_row.iloc[0]["budget"]) - budget_spent
-        if not budget_row.empty
-        else 0.0
-    )
+    if budget_row.empty:
+        segment_budget_left = 0.0
+    else:
+        segment_budget_left = (
+            float(budget_row.iloc[0]["budget"])
+            - float(budget_spent)
+        )
 
-    eligible, rejected = [], []
+    segment_budget_left = max(0.0, segment_budget_left)
 
-    for _, o in offers.iterrows():
-        if order.index(risk_level) < order.index(o["min_risk"]):
-            rejected.append(
-                f"{o['offer_id']}: risk {risk_level} "
-                f"below required {o['min_risk']}"
+    # 4. Apply the optional user-specified cap without bypassing
+    #    the segment's configured budget.
+    if budget_override is None:
+        budget_left = segment_budget_left
+    else:
+        try:
+            budget_cap = float(budget_override)
+        except (TypeError, ValueError):
+            return _result(
+                "error",
+                reason="Budget override must be a valid number",
             )
 
-        elif o["eligible_segment"] != segment:
+        if pd.isna(budget_cap) or budget_cap < 0:
+            return _result(
+                "error",
+                reason="Budget override must be non-negative",
+            )
+
+        budget_left = min(segment_budget_left, budget_cap)
+
+    eligible = []
+    rejected = []
+
+    # 5. Check risk level, segment and budget for every offer.
+    for _, offer in offers.iterrows():
+        offer_id = offer["offer_id"]
+        cost = float(offer["cost"])
+
+        if order.index(risk_level) < order.index(offer["min_risk"]):
             rejected.append(
-                f"{o['offer_id']}: for {o['eligible_segment']} "
+                f"{offer_id}: risk {risk_level} "
+                f"below required {offer['min_risk']}"
+            )
+
+        elif offer["eligible_segment"] != segment:
+            rejected.append(
+                f"{offer_id}: for {offer['eligible_segment']} "
                 f"segment, customer is {segment}"
             )
 
-        elif o["cost"] > budget_left:
+        elif cost > budget_left:
             rejected.append(
-                f"{o['offer_id']}: cost {o['cost']} "
+                f"{offer_id}: cost {cost} "
                 f"exceeds budget left {budget_left}"
             )
 
         else:
-            eligible.append(
-                {
-                    "offer_id": o["offer_id"],
-                    "description": o["description"],
-                    "cost": float(o["cost"])
-                }
-            )
+            eligible.append({
+                "offer_id": offer_id,
+                "description": offer["description"],
+                "cost": cost,
+            })
 
-    # Cheapest eligible offer first
-    eligible.sort(key=lambda x: x["cost"])
+    # Cheapest eligible offer first.
+    eligible.sort(key=lambda item: item["cost"])
 
     data = {
         "customer_id": customer_id,
         "segment": segment,
         "risk_level": risk_level,
         "budget_left": budget_left,
+        "segment_budget_left": segment_budget_left,
         "eligible_offers": eligible,
-        "rejected": rejected
+        "rejected": rejected,
     }
 
     reason = (
@@ -471,7 +515,7 @@ REQUIRED_PLAN_FIELDS = [
     "customer_id",
     "period",
     "risk_level",
-    "action"
+    "action",
 ]
 
 
@@ -499,22 +543,22 @@ def _connect(db_path):
 
 @logged
 def save_retention_plan(plan, db_path="data/plans.db"):
-    # 1. Validate
     if not isinstance(plan, dict):
         return _result(
             "error",
-            reason="plan must be a dictionary"
+            reason="plan must be a dictionary",
         )
 
     missing = [
-        f for f in REQUIRED_PLAN_FIELDS
-        if not plan.get(f)
+        field
+        for field in REQUIRED_PLAN_FIELDS
+        if not plan.get(field)
     ]
 
     if missing:
         return _result(
             "error",
-            reason=f"Missing required fields: {', '.join(missing)}"
+            reason=f"Missing required fields: {', '.join(missing)}",
         )
 
     conn = None
@@ -522,11 +566,11 @@ def save_retention_plan(plan, db_path="data/plans.db"):
     try:
         conn = _connect(db_path)
 
-        # 2. Duplicate check (same customer + period)
+        # One plan per customer and analysis month.
         row = conn.execute(
             "SELECT plan_id, status, created_at FROM plans "
             "WHERE customer_id = ? AND period = ?",
-            (plan["customer_id"], plan["period"])
+            (plan["customer_id"], plan["period"]),
         ).fetchone()
 
         if row:
@@ -535,15 +579,15 @@ def save_retention_plan(plan, db_path="data/plans.db"):
                 {
                     "plan_id": row[0],
                     "status": row[1],
-                    "created_at": row[2]
+                    "created_at": row[2],
                 },
                 reason=(
                     "A plan already exists for this customer "
                     "and period. Nothing saved."
-                )
+                ),
             )
 
-        # 3. Save as pending human review (never auto-approved)
+        # Always pending human review; never auto-approved.
         plan_id = "PLAN-" + uuid.uuid4().hex[:8].upper()
 
         created_at = datetime.now(timezone.utc).isoformat(
@@ -562,16 +606,16 @@ def save_retention_plan(plan, db_path="data/plans.db"):
                 plan.get("cost"),
                 plan.get("rationale", ""),
                 "pending_review",
-                created_at
-            )
+                created_at,
+            ),
         )
 
         conn.commit()
 
-    except sqlite3.Error as e:
+    except sqlite3.Error as exc:
         return _result(
             "error",
-            reason=f"Database error: {e}"
+            reason=f"Database error: {exc}",
         )
 
     finally:
@@ -583,9 +627,9 @@ def save_retention_plan(plan, db_path="data/plans.db"):
         {
             "plan_id": plan_id,
             "status": "pending_review",
-            "created_at": created_at
+            "created_at": created_at,
         },
-        reason="Saved for human review. No action has been taken."
+        reason="Saved for human review. No action has been taken.",
     )
 
 
@@ -596,6 +640,52 @@ def list_retention_plans(db_path="data/plans.db"):
         rows = conn.execute(
             "SELECT * FROM plans ORDER BY created_at"
         ).fetchall()
+
         return rows
+
     finally:
         conn.close()
+def get_customer_memory(customer_id, db_path="data/plans.db"):
+    """Retrieve previous retention plans for one customer."""
+    conn = _connect(db_path)
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT plan_id, period, risk_level, action,
+                   offer_id, cost, status, created_at
+            FROM plans
+            WHERE customer_id = ?
+            ORDER BY created_at DESC
+            """,
+            (customer_id,),
+        ).fetchall()
+
+        columns = [
+            "plan_id",
+            "period",
+            "risk_level",
+            "action",
+            "offer_id",
+            "cost",
+            "status",
+            "created_at",
+        ]
+
+        return [
+            dict(zip(columns, row))
+            for row in rows
+        ]
+
+    finally:
+        conn.close()  
+
+@logged
+def lookup_customer_memory(customer_id, db_path="data/plans.db"):
+    """Same as get_customer_memory, but logged and in the standard result shape."""
+    if not customer_id or not isinstance(customer_id, str):
+        return _result("error", reason="customer_id must be a non-empty string")
+    plans = get_customer_memory(customer_id, db_path=db_path)
+    return _result("ok", {"customer_id": customer_id,
+                          "previous_plans": plans, "count": len(plans)},
+                   reason="" if plans else "No previous plans for this customer")             

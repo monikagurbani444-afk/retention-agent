@@ -9,6 +9,8 @@ OFFER = re.compile(r"\bOF-\d+\b", re.I)
 
 def _summary(state):
     r = state["recommendation"]
+    if r["outcome"] in ("error", "needs_info"):
+        return r["action"]
     src = ", ".join(r["sources"]) or "no policy source found"
     return (f"{r['customer_id'] if 'customer_id' in r else ''} {r['action']} "
             f"Risk: {r['risk_level']}. Source: {src}. Next: {r['next_action']}").strip()
@@ -16,6 +18,8 @@ def _summary(state):
 
 def _follow_up(msg, state):
     r, q = state["recommendation"], msg.lower()
+    if r["outcome"] in ("error", "needs_info"):
+        return None
     m = OFFER.search(msg)
     if m:
         oid = m.group(0).upper()
@@ -46,7 +50,16 @@ def handle_message(message, state=None):
         return {"kind": "declined", "text": DECLINE_TEXT}
     m = CID.search(msg)
     if m:
-        new = run_agent(m.group(0).upper())
+        # Reuse the periods, budget and thread of the current analysis.
+        # With no earlier analysis, the agent falls back to its defaults.
+        st_ = state or {}
+        new = run_agent(
+            m.group(0).upper(),
+            analysis_month=st_.get("analysis_month"),
+            comparison_month=st_.get("comparison_month"),
+            budget_limit=st_.get("budget_limit"),
+            thread_id=st_.get("thread_id", "default"),
+        )
         return {"kind": "analysis", "text": _summary(new), "state": new}
     if state:
         answer = _follow_up(msg, state)

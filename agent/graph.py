@@ -1,10 +1,14 @@
+import re
 from typing import TypedDict
+
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, END
 
 from tools.analysis import (
     assign_retention_risk,
     get_eligible_offers,
     save_retention_plan,
+    lookup_customer_memory,
     load_rules,
 )
 from retrieval.policy import PolicyIndex, retrieve
@@ -12,6 +16,7 @@ from agent.guardrails import is_injected
 
 
 _INDEX = None
+MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def get_index():
@@ -23,6 +28,10 @@ def get_index():
 
 class State(TypedDict, total=False):
     customer_id: str
+    analysis_month: str
+    comparison_month: str
+    budget_limit: float
+    thread_id: str
     risk: dict
     offers: dict
     outcome: str
@@ -31,6 +40,7 @@ class State(TypedDict, total=False):
     recommendation: dict
     saved: dict
     trace: list
+    history: list
 
 
 POLICY_QUERY = {
@@ -44,23 +54,92 @@ POLICY_QUERY = {
 
 
 def validate(s):
+    trace = s["trace"]
     cid = (s.get("customer_id") or "").strip().upper()
 
     if not cid:
         return {
             "outcome": "error",
             "error": "Please enter a customer ID.",
-            "trace": s["trace"] + ["validate: empty customer ID"],
+            "trace": trace + ["validate: empty customer ID"],
         }
+
+    cfg = load_rules()["comparison"]
+    am = s.get("analysis_month")
+    cm = s.get("comparison_month")
+    bl = s.get("budget_limit")
+
+    # Missing information. A blank field (empty string) means the user
+    # left it empty, so the agent asks. None means the caller did not
+    # supply it, so the configured default is used.
+    missing = []
+    if am is not None and not str(am).strip():
+        missing.append("analysis month")
+    if cm is not None and not str(cm).strip():
+        missing.append("comparison month")
+    if isinstance(bl, str) and not bl.strip():
+        missing.append("budget")
+
+    if missing:
+        return {
+            "customer_id": cid,
+            "outcome": "needs_info",
+            "error": "Please provide: " + ", ".join(missing) + ".",
+            "trace": trace + [f"validate: missing {missing}"],
+        }
+
+    am = cfg["analysis_month"] if am is None else str(am).strip()
+    cm = cfg["comparison_month"] if cm is None else str(cm).strip()
+
+    if not MONTH_RE.match(am) or not MONTH_RE.match(cm):
+        return {
+            "customer_id": cid,
+            "outcome": "error",
+            "error": "Months must be in YYYY-MM format (for example 2026-09).",
+            "trace": trace + ["validate: bad month format"],
+        }
+
+    if am == cm:
+        return {
+            "customer_id": cid,
+            "outcome": "error",
+            "error": "Analysis and comparison months must be different.",
+            "trace": trace + ["validate: identical months"],
+        }
+
+    if bl is not None:
+        try:
+            bl = float(bl)
+        except (TypeError, ValueError):
+            return {
+                "customer_id": cid,
+                "outcome": "error",
+                "error": "Budget must be a valid number.",
+                "trace": trace + ["validate: budget not a number"],
+            }
+        if bl < 0:
+            return {
+                "customer_id": cid,
+                "outcome": "error",
+                "error": "Budget must be non-negative.",
+                "trace": trace + ["validate: negative budget"],
+            }
 
     return {
         "customer_id": cid,
-        "trace": s["trace"] + [f"validate: {cid}"],
+        "analysis_month": am,
+        "comparison_month": cm,
+        "budget_limit": bl,
+        "trace": trace + [f"validate: {cid}, {cm} vs {am}"],
     }
 
 
 def risk(s):
-    r = assign_retention_risk(s["customer_id"])
+    r = assign_retention_risk(
+        s["customer_id"],
+        analysis_month=s["analysis_month"],
+        comparison_month=s["comparison_month"],
+    )
     t = s["trace"] + [
         f"assign_retention_risk -> {r['status']}"
     ]
@@ -90,7 +169,11 @@ def risk(s):
 
 def offers(s):
     level = s["risk"]["data"]["risk_level"]
-    o = get_eligible_offers(s["customer_id"], level)
+    o = get_eligible_offers(
+        s["customer_id"],
+        level,
+        budget_override=s.get("budget_limit"),
+    )
 
     return {
         "offers": o,
@@ -150,12 +233,12 @@ def policy(s):
 def build(s):
     outcome = s["outcome"]
 
-    if outcome == "error":
+    if outcome in ("error", "needs_info"):
         return {
             "recommendation": {
-                "outcome": "error",
+                "outcome": outcome,
                 "action": s.get("error", "Error"),
-                "next_action": "Check the customer ID and try again.",
+                "next_action": "Check the details and try again.",
                 "sources": [],
                 "assumptions": [],
                 "calculations": {},
@@ -163,7 +246,14 @@ def build(s):
             }
         }
 
-    d = s["risk"]["data"]
+    d = s.get("risk", {}).get("data", {})
+
+    # Memory: earlier saved plans for this customer.
+    prev = lookup_customer_memory(s["customer_id"])
+    previous = (
+        prev["data"].get("previous_plans", [])
+        if prev["status"] == "ok" else []
+    )
 
     eligible = (
         s.get("offers", {})
@@ -233,13 +323,20 @@ def build(s):
 
     assumptions = [
         "Risk level is rule-based, not a predictive model.",
-        "Comparison uses the months set in config/risk_rules.yaml.",
+        f"Comparison uses {s['comparison_month']} vs "
+        f"{s['analysis_month']}.",
         "This is a recommendation only. A human must approve any action.",
     ]
 
     if not sources:
         assumptions.append(
             "No matching policy section was found."
+        )
+
+    if previous:
+        assumptions.append(
+            f"{len(previous)} earlier plan(s) on file for this "
+            f"customer; latest: {previous[0]['action']}"
         )
 
     calc = {}
@@ -273,7 +370,7 @@ def save(s):
 
     plan = {
         "customer_id": rec["customer_id"],
-        "period": load_rules()["comparison"]["analysis_month"],
+        "period": s["analysis_month"],
         "risk_level": rec["risk_level"],
         "action": rec["action"],
         "offer_id": (
@@ -291,6 +388,11 @@ def save(s):
 
     return {
         "saved": r,
+        "history": s.get("history", []) + [{
+            "customer_id": rec["customer_id"],
+            "outcome": rec["outcome"],
+            "offer_id": plan["offer_id"],
+        }],
         "trace": s["trace"] + [
             f"save_retention_plan -> {r['status']}"
         ],
@@ -298,7 +400,11 @@ def save(s):
 
 
 def after_validate(s):
-    return "build" if s.get("outcome") == "error" else "risk"
+    return (
+        "build"
+        if s.get("outcome") in ("error", "needs_info")
+        else "risk"
+    )
 
 
 def after_risk(s):
@@ -315,7 +421,7 @@ def after_decide(s):
 def after_build(s):
     return (
         END
-        if s["recommendation"]["outcome"] == "error"
+        if s["recommendation"]["outcome"] in ("error", "needs_info")
         else "save"
     )
 
@@ -344,19 +450,43 @@ def make_graph():
     g.add_conditional_edges("build", after_build)
     g.add_edge("save", END)
 
-    return g.compile()
+    # MemorySaver gives thread-based memory across runs.
+    return g.compile(checkpointer=MemorySaver())
 
 
 _APP = None
 
 
-def run_agent(customer_id):
+def run_agent(
+    customer_id,
+    analysis_month=None,
+    comparison_month=None,
+    budget_limit=None,
+    thread_id="default",
+):
     global _APP
 
     if _APP is None:
         _APP = make_graph()
 
-    return _APP.invoke({
-        "customer_id": customer_id,
-        "trace": [],
-    })
+    # Per-run fields are reset so one customer's result never leaks
+    # into the next run on the same thread. `history` is not reset:
+    # it is the thread memory.
+    return _APP.invoke(
+        {
+            "customer_id": customer_id,
+            "analysis_month": analysis_month,
+            "comparison_month": comparison_month,
+            "budget_limit": budget_limit,
+            "thread_id": thread_id,
+            "trace": [],
+            "outcome": "",
+            "error": "",
+            "risk": {},
+            "offers": {},
+            "policy": {},
+            "recommendation": {},
+            "saved": {},
+        },
+        config={"configurable": {"thread_id": thread_id}},
+    )
