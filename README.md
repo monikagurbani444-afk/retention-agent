@@ -5,7 +5,7 @@ for customers whose purchases and engagement are declining. It **only recommends
 every plan is saved as `pending_review` for a human to approve.
 
 **Team:** Monika Gurbani (data, tools, tests) and [Amber Sharma] (policy, retrieval, agent, UI)
-**Live app:** [deploying]
+**Live app:** [https://retention-advisor.streamlit.app/]
 
 ## Features
 - Rule-based risk (Low / Medium / High) from purchase and engagement decline. Not a predictive model.
