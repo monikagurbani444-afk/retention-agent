@@ -1,0 +1,38 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.6, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\monik\retention_agent\venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\monik\retention_agent
+configfile: pytest.ini
+testpaths: tests
+collecting ... collected 28 items
+
+tests/test_tools.py::test_purchase_decline_normal PASSED                 [  3%]
+tests/test_tools.py::test_purchase_decline_seasonal PASSED               [  7%]
+tests/test_tools.py::test_purchase_decline_new_customer PASSED           [ 10%]
+tests/test_tools.py::test_purchase_decline_unknown_customer PASSED       [ 14%]
+tests/test_tools.py::test_purchase_decline_empty_id PASSED               [ 17%]
+tests/test_tools.py::test_purchase_decline_missing_file PASSED           [ 21%]
+tests/test_tools.py::test_engagement_normal PASSED                       [ 25%]
+tests/test_tools.py::test_engagement_new_customer PASSED                 [ 28%]
+tests/test_tools.py::test_engagement_unknown_customer PASSED             [ 32%]
+tests/test_tools.py::test_risk_high PASSED                               [ 35%]
+tests/test_tools.py::test_risk_medium PASSED                             [ 39%]
+tests/test_tools.py::test_risk_boundary_is_high PASSED                   [ 42%]
+tests/test_tools.py::test_risk_seasonal_is_low PASSED                    [ 46%]
+tests/test_tools.py::test_risk_new_customer_not_assigned PASSED          [ 50%]
+tests/test_tools.py::test_risk_has_rule_trace PASSED                     [ 53%]
+tests/test_tools.py::test_offers_high_risk PASSED                        [ 57%]
+tests/test_tools.py::test_offers_medium_risk_excludes_high_offer PASSED  [ 60%]
+tests/test_tools.py::test_offers_open_complaint_service_first PASSED     [ 64%]
+tests/test_tools.py::test_offers_opted_out_blocked PASSED                [ 67%]
+tests/test_tools.py::test_offers_segment_mismatch PASSED                 [ 71%]
+tests/test_tools.py::test_offers_budget_exhausted PASSED                 [ 75%]
+tests/test_tools.py::test_offers_unknown_customer PASSED                 [ 78%]
+tests/test_tools.py::test_offers_bad_risk_level PASSED                   [ 82%]
+tests/test_tools.py::test_save_ok_is_pending_review PASSED               [ 85%]
+tests/test_tools.py::test_save_retry_is_duplicate PASSED                 [ 89%]
+tests/test_tools.py::test_save_missing_fields PASSED                     [ 92%]
+tests/test_tools.py::test_save_not_a_dict PASSED                         [ 96%]
+tests/test_tools.py::test_tool_calls_are_logged PASSED                   [100%]
+
+============================= 28 passed in 1.03s ==============================

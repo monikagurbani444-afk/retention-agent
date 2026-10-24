@@ -1,0 +1,9 @@
+customer_id,segment,contact_preference
+C-301,Regular,email
+C-302,Regular,email
+C-303,Regular,email
+C-304,Regular,email
+C-305,Enterprise,email
+C-306,Regular,none
+C-307,Regular,email
+C-308,Regular,email

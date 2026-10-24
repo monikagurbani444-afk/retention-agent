@@ -1,0 +1,3 @@
+complaint_id,customer_id,date,status,issue
+CMP-1,C-304,2026-09-05,open,"Late delivery, no response"
+CMP-2,C-301,2026-07-10,resolved,Wrong item shipped

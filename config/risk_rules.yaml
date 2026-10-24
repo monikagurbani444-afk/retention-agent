@@ -1,0 +1,28 @@
+# Rule-based retention risk settings (NOT a predictive model)
+
+minimum_history_months: 2     # fewer months than this -> risk not assigned
+
+comparison:
+  analysis_month: "2026-09"
+  comparison_month: "2026-08"
+
+engagement_weights:
+  logins: 1
+  emails_opened: 2
+
+seasonality:
+  tolerance_pct: 10   # decline within 10 points of last year's = seasonal
+
+risk_levels:          # checked from the top; first match wins
+  - level: High
+    purchase_decline_pct_min: 50
+    engagement_decline_pct_min: 40
+    match: all        # BOTH conditions must be true
+  - level: Medium
+    purchase_decline_pct_min: 25
+    engagement_decline_pct_min: 40
+    match: any        # EITHER condition is enough
+  - level: Low
+    match: default    # everything else
+
+risk_order: [Low, Medium, High]   # used to compare against an offer's min_risk
