@@ -1,38 +1,51 @@
-﻿============================= test session starts =============================
-platform win32 -- Python 3.11.6, pytest-9.1.1, pluggy-1.7.0 -- C:\Users\monik\retention_agent\venv\Scripts\python.exe
+============================= test session starts ==============================
+platform linux -- Python 3.14.2, pytest-9.1.1, pluggy-1.6.0 -- /usr/local/py-utils/venvs/pytest/bin/python
 cachedir: .pytest_cache
-rootdir: C:\Users\monik\retention_agent
+rootdir: /workspaces/retention-agent
 configfile: pytest.ini
 testpaths: tests
-collecting ... collected 28 items
+plugins: anyio-4.15.1, langsmith-0.14.12
+collecting ... collected 40 items
 
-tests/test_tools.py::test_purchase_decline_normal PASSED                 [  3%]
-tests/test_tools.py::test_purchase_decline_seasonal PASSED               [  7%]
-tests/test_tools.py::test_purchase_decline_new_customer PASSED           [ 10%]
-tests/test_tools.py::test_purchase_decline_unknown_customer PASSED       [ 14%]
-tests/test_tools.py::test_purchase_decline_empty_id PASSED               [ 17%]
-tests/test_tools.py::test_purchase_decline_missing_file PASSED           [ 21%]
-tests/test_tools.py::test_engagement_normal PASSED                       [ 25%]
-tests/test_tools.py::test_engagement_new_customer PASSED                 [ 28%]
-tests/test_tools.py::test_engagement_unknown_customer PASSED             [ 32%]
-tests/test_tools.py::test_risk_high PASSED                               [ 35%]
-tests/test_tools.py::test_risk_medium PASSED                             [ 39%]
-tests/test_tools.py::test_risk_boundary_is_high PASSED                   [ 42%]
-tests/test_tools.py::test_risk_seasonal_is_low PASSED                    [ 46%]
-tests/test_tools.py::test_risk_new_customer_not_assigned PASSED          [ 50%]
-tests/test_tools.py::test_risk_has_rule_trace PASSED                     [ 53%]
-tests/test_tools.py::test_offers_high_risk PASSED                        [ 57%]
-tests/test_tools.py::test_offers_medium_risk_excludes_high_offer PASSED  [ 60%]
-tests/test_tools.py::test_offers_open_complaint_service_first PASSED     [ 64%]
-tests/test_tools.py::test_offers_opted_out_blocked PASSED                [ 67%]
-tests/test_tools.py::test_offers_segment_mismatch PASSED                 [ 71%]
-tests/test_tools.py::test_offers_budget_exhausted PASSED                 [ 75%]
-tests/test_tools.py::test_offers_unknown_customer PASSED                 [ 78%]
-tests/test_tools.py::test_offers_bad_risk_level PASSED                   [ 82%]
-tests/test_tools.py::test_save_ok_is_pending_review PASSED               [ 85%]
-tests/test_tools.py::test_save_retry_is_duplicate PASSED                 [ 89%]
-tests/test_tools.py::test_save_missing_fields PASSED                     [ 92%]
-tests/test_tools.py::test_save_not_a_dict PASSED                         [ 96%]
+tests/test_agent.py::test_normal_recommendation PASSED                   [  2%]
+tests/test_agent.py::test_conflicting_evidence_seasonal_wins PASSED      [  5%]
+tests/test_agent.py::test_missing_customer_id PASSED                     [  7%]
+tests/test_agent.py::test_repeated_request_is_duplicate PASSED           [ 10%]
+tests/test_agent.py::test_tool_failure_is_reported PASSED                [ 12%]
+tests/test_agent.py::test_irrelevant_retrieval_not_found PASSED          [ 15%]
+tests/test_agent.py::test_send_it_now_is_declined PASSED                 [ 17%]
+tests/test_agent.py::test_policy_question_is_not_declined PASSED         [ 20%]
+tests/test_agent.py::test_injected_text_is_flagged PASSED                [ 22%]
+tests/test_agent.py::test_follow_up_why_not_high_offer PASSED            [ 25%]
+tests/test_agent.py::test_follow_up_sources PASSED                       [ 27%]
+tests/test_agent.py::test_unknown_question_not_guessed PASSED            [ 30%]
+tests/test_tools.py::test_purchase_decline_normal PASSED                 [ 32%]
+tests/test_tools.py::test_purchase_decline_seasonal PASSED               [ 35%]
+tests/test_tools.py::test_purchase_decline_new_customer PASSED           [ 37%]
+tests/test_tools.py::test_purchase_decline_unknown_customer PASSED       [ 40%]
+tests/test_tools.py::test_purchase_decline_empty_id PASSED               [ 42%]
+tests/test_tools.py::test_purchase_decline_missing_file PASSED           [ 45%]
+tests/test_tools.py::test_engagement_normal PASSED                       [ 47%]
+tests/test_tools.py::test_engagement_new_customer PASSED                 [ 50%]
+tests/test_tools.py::test_engagement_unknown_customer PASSED             [ 52%]
+tests/test_tools.py::test_risk_high PASSED                               [ 55%]
+tests/test_tools.py::test_risk_medium PASSED                             [ 57%]
+tests/test_tools.py::test_risk_boundary_is_high PASSED                   [ 60%]
+tests/test_tools.py::test_risk_seasonal_is_low PASSED                    [ 62%]
+tests/test_tools.py::test_risk_new_customer_not_assigned PASSED          [ 65%]
+tests/test_tools.py::test_risk_has_rule_trace PASSED                     [ 67%]
+tests/test_tools.py::test_offers_high_risk PASSED                        [ 70%]
+tests/test_tools.py::test_offers_medium_risk_excludes_high_offer PASSED  [ 72%]
+tests/test_tools.py::test_offers_open_complaint_service_first PASSED     [ 75%]
+tests/test_tools.py::test_offers_opted_out_blocked PASSED                [ 77%]
+tests/test_tools.py::test_offers_segment_mismatch PASSED                 [ 80%]
+tests/test_tools.py::test_offers_budget_exhausted PASSED                 [ 82%]
+tests/test_tools.py::test_offers_unknown_customer PASSED                 [ 85%]
+tests/test_tools.py::test_offers_bad_risk_level PASSED                   [ 87%]
+tests/test_tools.py::test_save_ok_is_pending_review PASSED               [ 90%]
+tests/test_tools.py::test_save_retry_is_duplicate PASSED                 [ 92%]
+tests/test_tools.py::test_save_missing_fields PASSED                     [ 95%]
+tests/test_tools.py::test_save_not_a_dict PASSED                         [ 97%]
 tests/test_tools.py::test_tool_calls_are_logged PASSED                   [100%]
 
-============================= 28 passed in 1.03s ==============================
+============================== 40 passed in 2.61s ==============================
