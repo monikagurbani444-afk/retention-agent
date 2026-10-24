@@ -117,6 +117,7 @@ def validate(s):
                 "error": "Budget must be a valid number.",
                 "trace": trace + ["validate: budget not a number"],
             }
+
         if bl < 0:
             return {
                 "customer_id": cid,
@@ -140,6 +141,7 @@ def risk(s):
         analysis_month=s["analysis_month"],
         comparison_month=s["comparison_month"],
     )
+
     t = s["trace"] + [
         f"assign_retention_risk -> {r['status']}"
     ]
@@ -169,6 +171,7 @@ def risk(s):
 
 def offers(s):
     level = s["risk"]["data"]["risk_level"]
+
     o = get_eligible_offers(
         s["customer_id"],
         level,
@@ -333,10 +336,16 @@ def build(s):
             "No matching policy section was found."
         )
 
+    # Include earlier plan count, unique offer IDs, and latest action.
     if previous:
+        offers_seen = sorted(
+            {p["offer_id"] for p in previous if p.get("offer_id")}
+        )
         assumptions.append(
-            f"{len(previous)} earlier plan(s) on file for this "
-            f"customer; latest: {previous[0]['action']}"
+            f"{len(previous)} earlier plan(s) on file for this customer"
+            + (f"; previous offers: {', '.join(offers_seen)}"
+               if offers_seen else "")
+            + f"; latest action: {previous[0]['action']}"
         )
 
     calc = {}
