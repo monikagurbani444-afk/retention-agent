@@ -1,3 +1,17 @@
 complaint_id,customer_id,date,status,issue
 CMP-1,C-304,2026-09-05,open,"Late delivery, no response"
 CMP-2,C-301,2026-07-10,resolved,Wrong item shipped
+CMP-3,C-301,2026-03-18,resolved,Invoice amount incorrect
+CMP-4,C-302,2026-09-12,resolved,Login problem
+CMP-5,C-303,2026-05-02,resolved,Damaged packaging
+CMP-6,C-305,2026-08-20,resolved,Billing query
+CMP-7,C-307,2026-06-14,resolved,Refund delay
+CMP-8,C-314,2026-04-09,resolved,Late delivery
+CMP-9,C-314,2026-08-30,open,"Late delivery again, no reply"
+CMP-10,C-314,2026-09-14,open,Refund not received
+CMP-11,C-315,2026-02-11,resolved,Wrong item shipped
+CMP-12,C-315,2026-07-22,resolved,Missing invoice
+CMP-13,C-316,2026-09-02,Open ,Product quality
+CMP-13,C-316,2026-09-02,Open ,Product quality
+CMP-14,C-309,2026-01-25,resolved,Slow support
+CMP-15,C-310,2026-06-30,,Unclear issue
