@@ -3,5 +3,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 data/plans.db
-data/tool_calls.jsonl
 .env

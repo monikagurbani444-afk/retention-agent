@@ -20,7 +20,7 @@ every plan is saved as `pending_review` for a human to approve.
   - Customer data is re-read from the files on every analysis, so reassessments use fresh data.
 - Guardrails: declines action requests ("send it now"), ignores instructions inside retrieved text, never guesses when nothing matches.
 - Saved plans with unique IDs, timestamps and duplicate prevention (SQLite).
-- Every tool call logged to `data/tool_calls.jsonl`; rule trace shown in the UI.
+- Every tool call logged to `data/tool_calls.jsonl`; rule trace shown in the UI. A sample log from the test run is in `docs/sample_tool_calls.jsonl`.
 
 ## Architecture
 See `docs/workflow_diagram.png`.
@@ -48,9 +48,9 @@ streamlit run app.py
 ```
 pytest -v
 ```
-59 tests cover normal, boundary (exactly 50% / 40%), failure, missing information, input validation,
+68 tests cover normal, boundary (exactly 50% / 40%), failure, missing information, input validation,
 irrelevant retrieval, tool failure, conflicting evidence (seasonal vs high decline), repeated requests,
-follow-up questions, thread memory and saved-plan memory. Results are in `test_report.txt`.
+follow-up questions, thread memory, saved-plan memory, and blank or duplicate data. Results are in `test_report.txt`.
 
 ## Sample customers
 | ID | Scenario |
@@ -77,4 +77,3 @@ follow-up questions, thread memory and saved-plan memory. Results are in `test_r
 - Thread memory is kept in RAM and resets when the app restarts or a new session starts.
 - On free hosting, saved plans also reset when the app restarts.
 - No tool sends offers or contacts customers.
--

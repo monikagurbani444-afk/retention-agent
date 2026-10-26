@@ -18,6 +18,18 @@ def _same_month_last_year(month):
     return f"{int(year) - 1}-{mm}"
 
 
+def _clean(df, key_cols, value_cols):
+    """Drop exact duplicate rows and rows with blank values.
+
+    Returns (clean_df, problem). problem is a message when the same key
+    appears twice with different values (conflicting duplicates).
+    """
+    df = df.drop_duplicates()
+    if df.duplicated(subset=key_cols).any():
+        return df, "Conflicting duplicate records found"
+    return df.dropna(subset=value_cols), None
+
+
 def _result(status, data=None, reason=""):
     # Every tool returns the same structure.
     return {
@@ -62,6 +74,11 @@ def calculate_purchase_decline(
             "error",
             reason=f"No purchase records for {customer_id}",
         )
+
+    # Edge cases: exact duplicate rows are dropped, blank amounts ignored.
+    df, problem = _clean(df, ["month"], ["amount"])
+    if problem:
+        return _result("error", reason=problem)
 
     months_of_history = df["month"].nunique()
 
@@ -168,6 +185,11 @@ def calculate_engagement_score(
             "error",
             reason=f"No engagement records for {customer_id}",
         )
+
+    # Edge cases: exact duplicates dropped, blank logins/emails ignored.
+    df, problem = _clean(df, ["month"], ["logins", "emails_opened"])
+    if problem:
+        return _result("error", reason=problem)
 
     df = df.assign(
         score=(
@@ -354,13 +376,28 @@ def get_eligible_offers(
         )
 
     try:
-        customers = pd.read_csv(f"{data_dir}/customers.csv")
-        complaints = pd.read_csv(f"{data_dir}/complaints.csv")
+        # keep_default_na=False: a blank stays "" and "none" stays "none".
+        customers = pd.read_csv(
+            f"{data_dir}/customers.csv",
+            dtype=str,
+            keep_default_na=False,
+        ).drop_duplicates()
+
+        complaints = pd.read_csv(
+            f"{data_dir}/complaints.csv",
+            dtype=str,
+            keep_default_na=False,
+        ).drop_duplicates()
+
+        # "Open ", "OPEN" and "open" all count as open.
+        complaints["status"] = (
+            complaints["status"].str.strip().str.lower()
+        )
 
         offers = pd.read_excel(
             f"{data_dir}/offers.xlsx",
             sheet_name="offers",
-        )
+        ).drop_duplicates()
 
         budgets = pd.read_excel(
             f"{data_dir}/offers.xlsx",
@@ -381,11 +418,12 @@ def get_eligible_offers(
             reason=f"Unknown customer {customer_id}",
         )
 
-    segment = cust.iloc[0]["segment"]
-    contact = cust.iloc[0]["contact_preference"]
+    segment = cust.iloc[0]["segment"].strip()
+    contact = cust.iloc[0]["contact_preference"].strip().lower()
 
     # 1. Respect consent before considering any offer.
-    if contact == "none":
+    #    A blank preference is treated as "no consent on file".
+    if contact in ("none", ""):
         return _result(
             "blocked",
             {
@@ -393,8 +431,8 @@ def get_eligible_offers(
                 "eligible_offers": [],
             },
             reason=(
-                "Customer opted out of contact. "
-                "No outreach allowed."
+                "Customer opted out of contact or has no contact "
+                "preference on file. No outreach allowed."
             ),
         )
 
@@ -462,6 +500,12 @@ def get_eligible_offers(
     # 5. Check risk level, segment and budget for every offer.
     for _, offer in offers.iterrows():
         offer_id = offer["offer_id"]
+
+        # Edge case: an offer with a blank or invalid cost is skipped.
+        if pd.isna(offer["cost"]):
+            rejected.append(f"{offer_id}: cost is missing")
+            continue
+
         cost = float(offer["cost"])
 
         if order.index(risk_level) < order.index(offer["min_risk"]):
