@@ -70,10 +70,10 @@ follow-up questions, thread memory, saved-plan memory, and blank or duplicate da
 `docs/` policy PDF and diagram · `tests/`
 
 ## Assumptions and limits
-- Data is synthetic. Analysis month, comparison month and budget are entered in the app; defaults come from `config/risk_rules.yaml`.
-- The budget is entered in the app rather than stored in a file, so the budget input is the only source for it. The offers file (`data/offers.xlsx`) holds offer details and costs, not budgets.
-- Business rules (risk thresholds, defaults and seasonality settings) are stored in YAML (`config/risk_rules.yaml`) rather than JSON. The format is simple and human-editable, and the rules are read by code, not hard-coded in prompts.
-- The offers file has 7 rows. It is kept small so each offer's eligibility can be traced by hand, and the test expectations depend on these specific rows. Adding rows would require updating the tests.
+- Data is synthetic. Analysis month and comparison month are entered in the app.
+- Each segment's budget comes from the `budgets` sheet in `data/offers.xlsx`. The app's "Maximum offer budget" box is an optional extra cap, and the lower of the two limits applies.
+- The offers sheet has 15 rows, including one duplicate and one blank cost for testing. Eight offers are for a Premium segment that no sample customer belongs to, so they are never eligible for the sample customers. This keeps the file at a realistic size without changing the test results.
+- Business rules (risk thresholds and seasonality settings) are stored in YAML (`config/risk_rules.yaml`) rather than JSON. The rules are read by code, not hard-coded in prompts.
 - The agent analyses one customer at a time (no segment-level analysis).
 - Seasonal declines are rated Low and monitored.
 - Retrieval uses TF-IDF keyword matching, not embeddings.
