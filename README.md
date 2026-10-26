@@ -71,6 +71,9 @@ follow-up questions, thread memory, saved-plan memory, and blank or duplicate da
 
 ## Assumptions and limits
 - Data is synthetic. Analysis month, comparison month and budget are entered in the app; defaults come from `config/risk_rules.yaml`.
+- The budget is entered in the app rather than stored in a file, so the budget input is the only source for it. The offers file (`data/offers.xlsx`) holds offer details and costs, not budgets.
+- Business rules (risk thresholds, defaults and seasonality settings) are stored in YAML (`config/risk_rules.yaml`) rather than JSON. The format is simple and human-editable, and the rules are read by code, not hard-coded in prompts.
+- The offers file has 7 rows. It is kept small so each offer's eligibility can be traced by hand, and the test expectations depend on these specific rows. Adding rows would require updating the tests.
 - The agent analyses one customer at a time (no segment-level analysis).
 - Seasonal declines are rated Low and monitored.
 - Retrieval uses TF-IDF keyword matching, not embeddings.
