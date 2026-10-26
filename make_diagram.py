@@ -11,7 +11,7 @@ ax.set_ylim(0, 7)
 ax.axis("off")
 
 
-def box(x, y, w, h, text, color):
+def box(x, y, w, h, text, color, fs=9):
     ax.add_patch(
         FancyBboxPatch(
             (x, y),
@@ -29,7 +29,7 @@ def box(x, y, w, h, text, color):
         text,
         ha="center",
         va="center",
-        fontsize=9,
+        fontsize=fs,
     )
 
 
@@ -58,11 +58,12 @@ def arrow(x1, y1, x2, y2, label=""):
         )
 
 
-BLUE, GREEN, AMBER, GREY = (
+BLUE, GREEN, AMBER, GREY, PURPLE = (
     "#cfe3ff",
     "#d5f0d5",
     "#ffe9b5",
     "#e6e6e6",
+    "#e6dcff",
 )
 
 
@@ -73,7 +74,7 @@ box(2.6, 5.3, 1.7, 0.9,
     "Guardrails\n(decline actions)", AMBER)
 
 box(4.8, 5.3, 1.7, 0.9,
-    "1. Validate\ncustomer ID", BLUE)
+    "1. Validate input\n(ID, months, budget)\nblank: ask user", BLUE, fs=8)
 
 box(7.0, 5.3, 2.2, 0.9,
     "2. assign_retention_risk\n(purchase + engagement\n+ seasonality)", BLUE)
@@ -92,6 +93,9 @@ box(4.4, 3.7, 2.0, 0.9,
 
 box(1.9, 3.7, 2.0, 0.9,
     "7. save_retention_plan\n(pending_review,\nno duplicates)", BLUE)
+
+box(4.7, 2.85, 2.2, 0.65,
+    "Memory: thread history\n+ saved-plan lookup", PURPLE, fs=8)
 
 box(1.9, 1.7, 2.0, 0.9,
     "Human reviewer\napproves any action", AMBER)
@@ -116,7 +120,10 @@ arrow(4.4, 4.15, 3.9, 4.15)
 arrow(2.9, 3.7, 2.9, 2.6)
 arrow(3.9, 4.0, 4.4, 2.6)
 
-arrow(6.0, 5.3, 5.6, 4.6, "error")
+# Memory feeds the recommendation (earlier plans are looked up).
+arrow(5.8, 3.5, 5.8, 3.7)
+
+arrow(6.0, 5.3, 5.6, 4.6, "error / needs info")
 arrow(8.1, 5.3, 7.9, 4.6, "new customer")
 
 
